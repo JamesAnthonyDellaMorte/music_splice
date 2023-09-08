@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stemgen Service</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h2>Upload Audio File</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".wav">
+        <input type="button" value="Upload and Process" onclick="uploadFile()">
+    </form>
+    <div id="progress"></div>
+
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('connect', function() {
+            socket.emit('client_connected', {data: 'New client!'});
+        });
+
+        socket.on('status', function(data) {
+        if (data.message === 'Processing complete!') {
+            $('#progress').html(data.message + ' <a href="/output/' + data.filename + '">Download your file.</a>');
+        } else {
+        $('#progress').html(data.message);
+    }
+});
+
+        function uploadFile() {
+            var formData = new FormData($('#uploadForm')[0]);
+            $.ajax({
+                url: '/upload',
+                type: 'POST',
+                data: formData,
+                cache: false,
+                contentType: false,
+                processData: false,
+                xhr: function() {
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener("progress", function(evt) {
+                        if (evt.lengthComputable) {
+                            var percentComplete = evt.loaded / evt.total;
+                            percentComplete = parseInt(percentComplete * 100);
+                            $('#progress').text(percentComplete + '% uploaded');
+                        }
+                    }, false);
+                    return xhr;
+                },
+                success: function(data) {
+                    $('#progress').append('Processing complete! Download your file.<br>');
+                },
+                error: function() {
+                    $('#progress').append('Error occurred. Please try again.<br>');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
