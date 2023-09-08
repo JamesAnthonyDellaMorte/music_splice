@@ -50,7 +50,7 @@ def upload_file():
         # Process with demucs
         cmd = [
             "python3", "-m", "demucs", "--int24", "-n", "htdemucs_6s",
-            "-d", "cpu", filepath, "-o", "output/"
+            "-d", "cuda", filepath, "-o", "output/"
         ]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         for line in process.stdout:
@@ -59,7 +59,6 @@ def upload_file():
 
         process.communicate()
             
-        socketio.emit('status', {'message': 'Processing complete!', 'filename': filename}, room=session.get('sid'))
         
         # Create ZIP
         output_folder = os.path.join("output", "htdemucs_6s", base_name)
@@ -70,14 +69,32 @@ def upload_file():
                     file_path = os.path.join(root, file)
                     zipf.write(file_path, os.path.relpath(file_path, output_folder))
             
-        return send_from_directory(app.config['UPLOAD_FOLDER'], f"{base_name}.zip", as_attachment=True)
+        zip_filename = f"{base_name}.zip"
+        socketio.emit('status', {'message': 'Processing complete!', 'filename': zip_filename}, room=session.get('sid'))
+        return "File processed", 200
     else:
         flash('Allowed file types are .wav')
         return redirect(request.url)
 
+
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    # Send the file for download
+    response = send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+    
+    # After sending the file for download, clear the contents of the directories
+    clear_directory(app.config['UPLOAD_FOLDER'])
+    clear_directory(OUTPUT_FOLDER)
+
+    return response
 @app.route('/')
 def index():
     return render_template('index.html')
-
+def clear_directory(directory):
+    for root, dirs, files in os.walk(directory, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)

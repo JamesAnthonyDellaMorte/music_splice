@@ -24,7 +24,7 @@
 
         socket.on('status', function(data) {
         if (data.message === 'Processing complete!') {
-            $('#progress').html(data.message + ' <a href="/output/' + data.filename + '">Download your file.</a>');
+            $('#progress').html(data.message + ' <a href="/download/' + data.filename + '">Download your file.</a>');
         } else {
         $('#progress').html(data.message);
     }
